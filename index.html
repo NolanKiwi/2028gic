@@ -64,6 +64,25 @@
             background: #ddd;
             margin: 3em 0;
         }
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            background: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            position: sticky;
+            top: 10px;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #555;
+            font-weight: bold;
+        }
+        .nav a.active {
+            color: #d9534f;
+        }
         .warning {
             background-color: #fff3cd;
             border: 1px solid #ffeeba;
@@ -75,6 +94,11 @@
     </style>
 </head>
 <body>
+
+    <div class="nav">
+        <a href="part1.html">1부: 에이전트 AI의 부상</a>
+        <a href="index.html" class="active">2부: 2028년 위기 시나리오</a>
+    </div>
 
     <div class="warning">
         <strong>알림:</strong> 이 문서는 <a href="https://www.citriniresearch.com/p/2028gic" target="_blank">CitriniResearch의 원문</a>을 바탕으로 한국어로 번역 및 재구성한 것입니다. 원문의 시나리오는 예측이 아닌, AI가 경제에 미칠 수 있는 잠재적 위험을 탐구하는 가상의 시나리오입니다.
