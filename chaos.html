@@ -6,143 +6,221 @@
     <title>카오스 진자 (Chaotic Pendulum)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #111; color: #fff; font-family: sans-serif; }
-        .info {
+        body { margin: 0; overflow: hidden; background-color: #111; color: #fff; font-family: 'Apple SD Gothic Neo', sans-serif; }
+        .ui-panel {
             position: absolute;
             top: 20px;
             left: 20px;
-            pointer-events: none;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+            border: 1px solid #444;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            max-width: 300px;
         }
-        h1 { margin: 0; font-size: 24px; }
-        p { margin: 5px 0 0; font-size: 14px; opacity: 0.7; }
+        h1 { margin: 0 0 5px 0; font-size: 22px; color: #ffeb3b; }
+        h2 { margin: 0 0 15px 0; font-size: 14px; color: #aaa; font-weight: normal; }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 14px; color: #ddd; }
+        input[type=range] { width: 100%; cursor: pointer; }
+        .btn-group { display: flex; gap: 5px; }
+        button {
+            flex: 1;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 8px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: 0.2s;
+        }
+        button:hover { background: #555; border-color: #777; }
+        button.primary { background: #d9534f; border-color: #d9534f; }
+        button.primary:hover { background: #c9302c; }
+        
+        .desc { font-size: 12px; color: #888; line-height: 1.5; margin-top: 15px; border-top: 1px solid #444; padding-top: 10px; }
+        .nav { position: absolute; top: 20px; right: 20px; }
+        .nav a { color: #aaa; text-decoration: none; font-size: 14px; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 4px; }
+        .nav a:hover { color: #fff; background: rgba(0,0,0,0.8); }
     </style>
 </head>
 <body>
-    <div class="info">
-        <h1>카오스 진자 (Chaotic Pendulum)</h1>
-        <p>Double Pendulum Simulation with p5.js</p>
-        <p>초기 조건의 미세한 차이가 결과를 바꿉니다.</p>
+    <div class=\"nav\"><a href=\"index.html\">← 메인으로</a></div>
+    
+    <div class=\"ui-panel\">
+        <h1>카오스 진자</h1>
+        <h2>Double Pendulum Simulation</h2>
+        
+        <div class=\"control-group\">
+            <label>속도 (중력 G): <span id=\"speedVal\" style=\"color:#ffeb3b\">1.0</span></label>
+            <input type=\"range\" id=\"speedSlider\" min=\"0.1\" max=\"3.0\" step=\"0.1\" value=\"1.0\">
+        </div>
+
+        <div class=\"control-group\">
+            <label>현재 진자 수: <span id=\"countVal\" style=\"color:#4fc3f7\">1</span>개</label>
+            <div class=\"btn-group\">
+                <button onclick=\"addPendulum()\">+ 추가</button>
+                <button onclick=\"addPendulum(5)\">+5개</button>
+            </div>
+        </div>
+
+        <div class=\"btn-group\">
+            <button onclick=\"clearTrace()\">궤적 지우기</button>
+            <button class=\"primary\" onclick=\"resetAll()\">초기화</button>
+        </div>
+
+        <div class=\"desc\">
+            <strong>나비 효과 (Butterfly Effect)</strong><br>
+            진자를 여러 개 추가해 보세요. 처음엔 똑같이 움직이는 것 같지만, 미세한 차이가 시간이 지날수록 완전히 다른 결과를 만들어냅니다.
+        </div>
     </div>
 
     <script>
-        // 변수 설정
-        let r1 = 125; // 첫 번째 팔 길이
-        let r2 = 125; // 두 번째 팔 길이
-        let m1 = 20;  // 첫 번째 추 질량
-        let m2 = 20;  // 두 번째 추 질량
-        let a1 = Math.PI / 2; // 첫 번째 각도
-        let a2 = Math.PI / 2; // 두 번째 각도
-        let a1_v = 0; // 각속도
-        let a2_v = 0;
-        let g = 1;    // 중력 가속도
-
-        let px2 = -1; // 이전 위치 (궤적 그리기용)
-        let py2 = -1;
-        let cx, cy;   // 중심점
-
-        let buffer;   // 궤적을 그릴 그래픽 버퍼
+        let pendulums = [];
+        let buffer;
+        let cx, cy;
+        let r1 = 125, r2 = 125;
+        let m1 = 20, m2 = 20;
+        let g = 1;
 
         function setup() {
             createCanvas(windowWidth, windowHeight);
             cx = width / 2;
             cy = height / 3;
-            
-            // 궤적용 버퍼 생성
             buffer = createGraphics(width, height);
-            buffer.background(17); // 배경색
+            buffer.background(17);
             
-            // 초기 각도 약간 랜덤 (카오스 효과)
-            a1 = PI / 2 + random(-0.1, 0.1);
-            a2 = PI / 2 + random(-0.1, 0.1);
+            // 첫 진자 생성
+            addPendulum(1, true);
+            
+            // UI 이벤트 연결
+            document.getElementById('speedSlider').addEventListener('input', (e) => {
+                g = parseFloat(e.target.value);
+                document.getElementById('speedVal').innerText = g.toFixed(1);
+            });
+        }
+
+        class Pendulum {
+            constructor(isFirst) {
+                // 첫 진자는 90도, 나머지는 아주 미세하게 다르게 시작 (0.0001 차이)
+                // 카오스 이론의 핵심: 초기 조건의 민감성
+                let offset = isFirst ? 0 : random(-0.001, 0.001);
+                this.a1 = Math.PI / 2 + offset;
+                this.a2 = Math.PI / 2 + offset;
+                this.a1_v = 0;
+                this.a2_v = 0;
+                this.px2 = -1;
+                this.py2 = -1;
+                // 고유 색상 (HSB)
+                this.hue = random(360);
+            }
+
+            update() {
+                // 이중 진자 운동 방정식 (Lagrangian Mechanics)
+                let num1 = -g * (2 * m1 + m2) * sin(this.a1);
+                let num2 = -m2 * g * sin(this.a1 - 2 * this.a2);
+                let num3 = -2 * sin(this.a1 - this.a2) * m2;
+                let num4 = this.a2_v * this.a2_v * r2 + this.a1_v * this.a1_v * r1 * cos(this.a1 - this.a2);
+                let den = r1 * (2 * m1 + m2 - m2 * cos(2 * this.a1 - 2 * this.a2));
+                let a1_a = (num1 + num2 + num3 * num4) / den;
+
+                num1 = 2 * sin(this.a1 - this.a2);
+                num2 = (this.a1_v * this.a1_v * r1 * (m1 + m2));
+                num3 = g * (m1 + m2) * cos(this.a1);
+                num4 = this.a2_v * this.a2_v * r2 * m2 * cos(this.a1 - this.a2);
+                den = r2 * (2 * m1 + m2 - m2 * cos(2 * this.a1 - 2 * this.a2));
+                let a2_a = (num1 * (num2 + num3 + num4)) / den;
+
+                this.a1_v += a1_a;
+                this.a2_v += a2_a;
+                this.a1 += this.a1_v;
+                this.a2 += this.a2_v;
+                
+                // 마찰 계수 (현실감)
+                this.a1_v *= 0.999;
+                this.a2_v *= 0.999;
+            }
+
+            draw() {
+                let x1 = r1 * sin(this.a1);
+                let y1 = r1 * cos(this.a1);
+                let x2 = x1 + r2 * sin(this.a2);
+                let y2 = y1 + r2 * cos(this.a2);
+
+                push();
+                translate(cx, cy);
+                
+                // 진자 줄 (투명하게)
+                stroke(255, 30);
+                strokeWeight(1);
+                line(0, 0, x1, y1);
+                line(x1, y1, x2, y2);
+                
+                // 진자 추 (작고 반짝이게)
+                noStroke();
+                fill(255, 200);
+                ellipse(x1, y1, 6, 6);
+                fill(this.hue, 80, 100); // P5 default color mode is RGB, using HS-like logic here is tricky without mode change.
+                // Let's use RGB for fill based on hue simply
+                colorMode(HSB);
+                fill(this.hue, 80, 100);
+                ellipse(x2, y2, 8, 8);
+                pop();
+
+                // 궤적 그리기 (버퍼)
+                if (this.px2 !== -1) {
+                    buffer.push();
+                    buffer.translate(cx, cy);
+                    buffer.colorMode(HSB);
+                    // 속도에 따라 밝기 변화
+                    let vel = abs(this.a1_v) + abs(this.a2_v);
+                    let alpha = map(vel, 0, 0.5, 0.1, 0.6);
+                    buffer.stroke(this.hue, 80, 100, alpha);
+                    buffer.strokeWeight(1.5);
+                    buffer.line(this.px2, this.py2, x2, y2);
+                    buffer.pop();
+                }
+                this.px2 = x2;
+                this.py2 = y2;
+            }
         }
 
         function draw() {
-            // 메인 캔버스에 버퍼(궤적) 그리기
+            // 잔상 효과 (배경을 투명하게 덮음) -> 궤적은 버퍼에 영구 보존
+            // image(buffer, 0, 0) is persistent.
             image(buffer, 0, 0);
 
-            // 운동 방정식 (Double Pendulum Physics)
-            // 출처: https://www.myphysicslab.com/pendulum/double-pendulum-en.html
-            let num1 = -g * (2 * m1 + m2) * sin(a1);
-            let num2 = -m2 * g * sin(a1 - 2 * a2);
-            let num3 = -2 * sin(a1 - a2) * m2;
-            let num4 = a2_v * a2_v * r2 + a1_v * a1_v * r1 * cos(a1 - a2);
-            let den = r1 * (2 * m1 + m2 - m2 * cos(2 * a1 - 2 * a2));
-            let a1_a = (num1 + num2 + num3 * num4) / den;
-
-            num1 = 2 * sin(a1 - a2);
-            num2 = (a1_v * a1_v * r1 * (m1 + m2));
-            num3 = g * (m1 + m2) * cos(a1);
-            num4 = a2_v * a2_v * r2 * m2 * cos(a1 - a2);
-            den = r2 * (2 * m1 + m2 - m2 * cos(2 * a1 - 2 * a2));
-            let a2_a = (num1 * (num2 + num3 + num4)) / den;
-
-            // 위치 및 속도 업데이트
-            a1_v += a1_a;
-            a2_v += a2_a;
-            a1 += a1_v;
-            a2 += a2_v;
-            
-            // 마찰(공기저항) - 영원히 돌지 않게 약간 감속
-            a1_v *= 0.999;
-            a2_v *= 0.999;
-
-            // 좌표 계산
-            let x1 = r1 * sin(a1);
-            let y1 = r1 * cos(a1);
-            let x2 = x1 + r2 * sin(a2);
-            let y2 = y1 + r2 * cos(a2);
-
-            // 화면 중심으로 이동
-            translate(cx, cy);
-
-            // 진자 그리기 (흰색 선과 원)
-            stroke(255);
-            strokeWeight(2);
-            line(0, 0, x1, y1);
-            fill(255);
-            ellipse(x1, y1, m1, m1);
-
-            line(x1, y1, x2, y2);
-            fill(255);
-            ellipse(x2, y2, m2, m2);
-
-            // 궤적 그리기 (버퍼에 그림)
-            buffer.push();
-            buffer.translate(cx, cy);
-            if (frameCount > 1) {
-                // 속도에 따라 색상 변화 (파랑 -> 보라 -> 핑크)
-                let vel = abs(a1_v) + abs(a2_v);
-                let hue = map(vel, 0, 0.5, 180, 360);
-                buffer.colorMode(HSB);
-                buffer.stroke(hue % 360, 80, 100, 0.6); // HSB 컬러, 투명도
-                buffer.strokeWeight(2);
-                if (px2 !== -1) {
-                    buffer.line(px2, py2, x2, y2);
-                }
+            for (let p of pendulums) {
+                p.update();
+                p.draw();
             }
-            buffer.pop();
+        }
 
-            px2 = x2;
-            py2 = y2;
+        function addPendulum(count = 1, isFirst = false) {
+            for(let i=0; i<count; i++) {
+                pendulums.push(new Pendulum(isFirst && i===0));
+            }
+            document.getElementById('countVal').innerText = pendulums.length;
+        }
+
+        function resetAll() {
+            pendulums = [];
+            addPendulum(1, true);
+            clearTrace();
+        }
+
+        function clearTrace() {
+            buffer.background(17);
         }
 
         function windowResized() {
             resizeCanvas(windowWidth, windowHeight);
             cx = width / 2;
             cy = height / 3;
-            buffer = createGraphics(width, height); // 리사이즈 시 궤적 초기화
+            buffer = createGraphics(width, height);
             buffer.background(17);
-        }
-
-        function mousePressed() {
-            // 클릭하면 리셋 (랜덤 각도)
-            buffer.background(17);
-            a1 = PI / 2 + random(-0.5, 0.5);
-            a2 = PI / 2 + random(-0.5, 0.5);
-            a1_v = 0;
-            a2_v = 0;
-            px2 = -1; 
-            py2 = -1;
         }
     </script>
 </body>
