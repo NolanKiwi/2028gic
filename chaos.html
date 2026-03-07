@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>카오스 진자 (Chaotic Pendulum)</title>
+    <title>카오스 벤치마크 (Chaotic Benchmark)</title>
     <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background-color: #111; color: #fff; font-family: 'Apple SD Gothic Neo', sans-serif; }
@@ -11,17 +11,30 @@
             position: absolute;
             top: 20px;
             left: 20px;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.7);
             padding: 20px;
             border-radius: 12px;
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
             border: 1px solid #444;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            max-width: 300px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            max-width: 320px;
             z-index: 100;
         }
         h1 { margin: 0 0 5px 0; font-size: 22px; color: #ffeb3b; }
         h2 { margin: 0 0 15px 0; font-size: 14px; color: #aaa; font-weight: normal; }
+        .stat-group { 
+            background: rgba(255,255,255,0.05); 
+            padding: 10px; 
+            border-radius: 6px; 
+            margin-bottom: 15px; 
+        }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px; }
+        .stat-label { color: #ccc; }
+        .stat-val { font-family: monospace; font-weight: bold; }
+        .stat-val.good { color: #4caf50; }
+        .stat-val.warn { color: #ff9800; }
+        .stat-val.bad { color: #f44336; }
+
         .control-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-size: 14px; color: #ddd; }
         input[type=range] { width: 100%; cursor: pointer; }
@@ -31,17 +44,19 @@
             background: #333;
             color: #fff;
             border: 1px solid #555;
-            padding: 8px 0;
+            padding: 10px 0;
             cursor: pointer;
             border-radius: 4px;
             font-size: 13px;
             transition: 0.2s;
+            font-weight: bold;
         }
         button:hover { background: #555; border-color: #777; }
-        button.primary { background: #d9534f; border-color: #d9534f; }
-        button.primary:hover { background: #c9302c; }
+        button.add { background: #1e88e5; border-color: #1e88e5; }
+        button.add:hover { background: #1976d2; }
+        button.reset { background: #d9534f; border-color: #d9534f; }
+        button.reset:hover { background: #c9302c; }
         
-        .desc { font-size: 12px; color: #888; line-height: 1.5; margin-top: 15px; border-top: 1px solid #444; padding-top: 10px; }
         .nav { position: absolute; top: 20px; right: 20px; z-index: 100; }
         .nav a { color: #aaa; text-decoration: none; font-size: 14px; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 4px; }
         .nav a:hover { color: #fff; background: rgba(0,0,0,0.8); }
@@ -50,16 +65,11 @@
             .ui-panel {
                 top: auto;
                 bottom: 20px;
-                left: 20px;
-                right: 20px;
+                left: 10px;
+                right: 10px;
                 max-width: none;
                 padding: 15px;
             }
-            h1 { font-size: 18px; margin-bottom: 2px; }
-            h2 { font-size: 12px; margin-bottom: 10px; }
-            .desc { display: block; font-size: 11px; }
-            .btn-group button { padding: 12px 0; }
-            .nav { top: 10px; right: 10px; }
         }
     </style>
 </head>
@@ -67,30 +77,39 @@
     <div class="nav"><a href="index.html">← 메인으로</a></div>
     
     <div class="ui-panel">
-        <h1>카오스 진자</h1>
-        <h2>Double Pendulum Simulation</h2>
+        <h1>카오스 벤치마크</h1>
+        <h2>Physics Simulation Stress Test</h2>
         
-        <div class="control-group">
-            <label>속도 (중력 G): <span id="speedVal" style="color:#ffeb3b">1.0</span></label>
-            <input type="range" id="speedSlider" min="0.1" max="3.0" step="0.1" value="1.0">
+        <div class="stat-group">
+            <div class="stat-row">
+                <span class="stat-label">FPS (프레임):</span>
+                <span class="stat-val" id="fpsDisplay">60</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Objects (진자):</span>
+                <span class="stat-val" id="countDisplay">1</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Memory (Heap):</span>
+                <span class="stat-val" id="memDisplay">-</span>
+            </div>
         </div>
 
         <div class="control-group">
-            <label>현재 진자 수: <span id="countVal" style="color:#4fc3f7">1</span>개</label>
             <div class="btn-group">
-                <button onclick="addPendulum()">+ 추가</button>
-                <button onclick="addPendulum(5)">+5개</button>
+                <button class="add" onclick="addPendulum(100)">+100개 추가</button>
+                <button class="add" onclick="addPendulum(500)">+500개</button>
             </div>
+        </div>
+
+        <div class="control-group">
+            <label>시뮬레이션 속도 (G): <span id="speedVal" style="color:#ffeb3b">1.0</span></label>
+            <input type="range" id="speedSlider" min="0.1" max="3.0" step="0.1" value="1.0">
         </div>
 
         <div class="btn-group">
             <button onclick="clearTrace()">궤적 지우기</button>
-            <button class="primary" onclick="resetAll()">초기화</button>
-        </div>
-
-        <div class="desc">
-            <strong>나비 효과 (Butterfly Effect)</strong><br>
-            진자를 여러 개 추가해 보세요. 처음엔 똑같이 움직이는 것 같지만, 미세한 차이가 시간이 지날수록 완전히 다른 결과를 만들어냅니다.
+            <button class="reset" onclick="resetAll()">초기화</button>
         </div>
     </div>
 
@@ -98,36 +117,42 @@
         let pendulums = [];
         let buffer;
         let cx, cy;
-        let r1 = 125, r2 = 125;
-        let m1 = 20, m2 = 20;
+        let r1, r2;
+        let m1 = 10, m2 = 10; // 벤치마크용으로 질량/크기 조금 줄임
         let g = 1;
+        let fpsElem, countElem, memElem;
 
         function setup() {
             createCanvas(windowWidth, windowHeight);
-            setDimensions(); // 화면 크기에 맞춰 길이 설정
+            setDimensions();
             
             buffer = createGraphics(width, height);
             buffer.background(17);
             
+            // UI 요소
+            fpsElem = document.getElementById('fpsDisplay');
+            countElem = document.getElementById('countDisplay');
+            memElem = document.getElementById('memDisplay');
+            
+            // 첫 진자
             addPendulum(1, true);
             
+            // UI 이벤트
             let slider = document.getElementById('speedSlider');
             if (slider) {
                 slider.addEventListener('input', (e) => {
                     g = parseFloat(e.target.value);
-                    let valDisplay = document.getElementById('speedVal');
-                    if (valDisplay) valDisplay.innerText = g.toFixed(1);
+                    document.getElementById('speedVal').innerText = g.toFixed(1);
                 });
             }
+
+            // 0.5초마다 성능 모니터링 업데이트
+            setInterval(updateStats, 500);
         }
 
         function setDimensions() {
             cx = width / 2;
-            cy = height / 3; // 중심점 위치
-            
-            // 화면 크기에 비례하여 진자 길이 조정 (반응형)
-            // 화면의 짧은 쪽 길이(width or height)의 18% 정도로 설정
-            // 두 팔을 합치면 약 36%가 되어 화면 안에 넉넉히 들어옴
+            cy = height / 3;
             let minDim = min(width, height);
             r1 = minDim * 0.18;
             r2 = minDim * 0.18;
@@ -164,7 +189,6 @@
                 this.a2_v += a2_a;
                 this.a1 += this.a1_v;
                 this.a2 += this.a2_v;
-                
                 this.a1_v *= 0.999;
                 this.a2_v *= 0.999;
             }
@@ -178,20 +202,19 @@
                 push();
                 translate(cx, cy);
                 
-                // 진자 줄 (굵게)
-                stroke(255, 60);
-                strokeWeight(3);
+                // 성능 위해 선은 가늘게, 원은 생략하거나 작게 (대량 렌더링 최적화)
+                stroke(255, 30); // 매우 투명하게
+                strokeWeight(1);
                 line(0, 0, x1, y1);
                 line(x1, y1, x2, y2);
                 
-                // 진자 추 (크게)
-                noStroke();
-                fill(255, 200);
-                ellipse(x1, y1, 14, 14);
-                
-                colorMode(HSB);
-                fill(this.hue, 80, 100);
-                ellipse(x2, y2, 18, 18);
+                // 원은 성능을 많이 먹으므로 500개 미만일 때만 그림
+                if (pendulums.length < 500) {
+                    noStroke();
+                    fill(this.hue, 80, 100);
+                    colorMode(HSB);
+                    ellipse(x2, y2, 6, 6); // 추 크기 축소
+                }
                 pop();
 
                 if (this.px2 !== -1) {
@@ -199,9 +222,9 @@
                     buffer.translate(cx, cy);
                     buffer.colorMode(HSB);
                     let vel = abs(this.a1_v) + abs(this.a2_v);
-                    let alpha = map(vel, 0, 0.5, 0.3, 0.9);
+                    let alpha = map(vel, 0, 0.5, 0.1, 0.5);
                     buffer.stroke(this.hue, 80, 100, alpha);
-                    buffer.strokeWeight(3);
+                    buffer.strokeWeight(2); // 궤적 두께 조정
                     buffer.line(this.px2, this.py2, x2, y2);
                     buffer.pop();
                 }
@@ -222,8 +245,7 @@
             for(let i=0; i<count; i++) {
                 pendulums.push(new Pendulum(isFirst && i===0));
             }
-            let countDisplay = document.getElementById('countVal');
-            if (countDisplay) countDisplay.innerText = pendulums.length;
+            updateStats();
         }
 
         function resetAll() {
@@ -236,9 +258,30 @@
             if (buffer) buffer.background(17);
         }
 
+        function updateStats() {
+            // FPS
+            let fps = frameRate();
+            fpsElem.innerText = fps.toFixed(1);
+            if (fps >= 50) fpsElem.className = 'stat-val good';
+            else if (fps >= 30) fpsElem.className = 'stat-val warn';
+            else fpsElem.className = 'stat-val bad';
+
+            // Count
+            countElem.innerText = pendulums.length + ' 개';
+
+            // Memory (Chrome/Edge only)
+            if (performance && performance.memory) {
+                let used = Math.round(performance.memory.usedJSHeapSize / 1048576);
+                let total = Math.round(performance.memory.jsHeapSizeLimit / 1048576);
+                memElem.innerText = `${used} MB / ${total} MB`;
+            } else {
+                memElem.innerText = '지원안함';
+            }
+        }
+
         function windowResized() {
             resizeCanvas(windowWidth, windowHeight);
-            setDimensions(); // 리사이즈 시 길이 재계산
+            setDimensions();
             buffer = createGraphics(width, height);
             buffer.background(17);
         }
