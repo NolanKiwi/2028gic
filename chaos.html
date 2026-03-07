@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카오스 진자 (Chaotic Pendulum)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; color: #fff; font-family: sans-serif; }
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+        }
+        h1 { margin: 0; font-size: 24px; }
+        p { margin: 5px 0 0; font-size: 14px; opacity: 0.7; }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h1>카오스 진자 (Chaotic Pendulum)</h1>
+        <p>Double Pendulum Simulation with p5.js</p>
+        <p>초기 조건의 미세한 차이가 결과를 바꿉니다.</p>
+    </div>
+
+    <script>
+        // 변수 설정
+        let r1 = 125; // 첫 번째 팔 길이
+        let r2 = 125; // 두 번째 팔 길이
+        let m1 = 20;  // 첫 번째 추 질량
+        let m2 = 20;  // 두 번째 추 질량
+        let a1 = Math.PI / 2; // 첫 번째 각도
+        let a2 = Math.PI / 2; // 두 번째 각도
+        let a1_v = 0; // 각속도
+        let a2_v = 0;
+        let g = 1;    // 중력 가속도
+
+        let px2 = -1; // 이전 위치 (궤적 그리기용)
+        let py2 = -1;
+        let cx, cy;   // 중심점
+
+        let buffer;   // 궤적을 그릴 그래픽 버퍼
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            cx = width / 2;
+            cy = height / 3;
+            
+            // 궤적용 버퍼 생성
+            buffer = createGraphics(width, height);
+            buffer.background(17); // 배경색
+            
+            // 초기 각도 약간 랜덤 (카오스 효과)
+            a1 = PI / 2 + random(-0.1, 0.1);
+            a2 = PI / 2 + random(-0.1, 0.1);
+        }
+
+        function draw() {
+            // 메인 캔버스에 버퍼(궤적) 그리기
+            image(buffer, 0, 0);
+
+            // 운동 방정식 (Double Pendulum Physics)
+            // 출처: https://www.myphysicslab.com/pendulum/double-pendulum-en.html
+            let num1 = -g * (2 * m1 + m2) * sin(a1);
+            let num2 = -m2 * g * sin(a1 - 2 * a2);
+            let num3 = -2 * sin(a1 - a2) * m2;
+            let num4 = a2_v * a2_v * r2 + a1_v * a1_v * r1 * cos(a1 - a2);
+            let den = r1 * (2 * m1 + m2 - m2 * cos(2 * a1 - 2 * a2));
+            let a1_a = (num1 + num2 + num3 * num4) / den;
+
+            num1 = 2 * sin(a1 - a2);
+            num2 = (a1_v * a1_v * r1 * (m1 + m2));
+            num3 = g * (m1 + m2) * cos(a1);
+            num4 = a2_v * a2_v * r2 * m2 * cos(a1 - a2);
+            den = r2 * (2 * m1 + m2 - m2 * cos(2 * a1 - 2 * a2));
+            let a2_a = (num1 * (num2 + num3 + num4)) / den;
+
+            // 위치 및 속도 업데이트
+            a1_v += a1_a;
+            a2_v += a2_a;
+            a1 += a1_v;
+            a2 += a2_v;
+            
+            // 마찰(공기저항) - 영원히 돌지 않게 약간 감속
+            a1_v *= 0.999;
+            a2_v *= 0.999;
+
+            // 좌표 계산
+            let x1 = r1 * sin(a1);
+            let y1 = r1 * cos(a1);
+            let x2 = x1 + r2 * sin(a2);
+            let y2 = y1 + r2 * cos(a2);
+
+            // 화면 중심으로 이동
+            translate(cx, cy);
+
+            // 진자 그리기 (흰색 선과 원)
+            stroke(255);
+            strokeWeight(2);
+            line(0, 0, x1, y1);
+            fill(255);
+            ellipse(x1, y1, m1, m1);
+
+            line(x1, y1, x2, y2);
+            fill(255);
+            ellipse(x2, y2, m2, m2);
+
+            // 궤적 그리기 (버퍼에 그림)
+            buffer.push();
+            buffer.translate(cx, cy);
+            if (frameCount > 1) {
+                // 속도에 따라 색상 변화 (파랑 -> 보라 -> 핑크)
+                let vel = abs(a1_v) + abs(a2_v);
+                let hue = map(vel, 0, 0.5, 180, 360);
+                buffer.colorMode(HSB);
+                buffer.stroke(hue % 360, 80, 100, 0.6); // HSB 컬러, 투명도
+                buffer.strokeWeight(2);
+                if (px2 !== -1) {
+                    buffer.line(px2, py2, x2, y2);
+                }
+            }
+            buffer.pop();
+
+            px2 = x2;
+            py2 = y2;
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+            cx = width / 2;
+            cy = height / 3;
+            buffer = createGraphics(width, height); // 리사이즈 시 궤적 초기화
+            buffer.background(17);
+        }
+
+        function mousePressed() {
+            // 클릭하면 리셋 (랜덤 각도)
+            buffer.background(17);
+            a1 = PI / 2 + random(-0.5, 0.5);
+            a2 = PI / 2 + random(-0.5, 0.5);
+            a1_v = 0;
+            a2_v = 0;
+            px2 = -1; 
+            py2 = -1;
+        }
+    </script>
+</body>
+</html>
