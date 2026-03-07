@@ -20,21 +20,6 @@
             max-width: 300px;
             z-index: 100;
         }
-        @media (max-width: 600px) {
-            .ui-panel {
-                top: auto;
-                bottom: 20px;
-                left: 20px;
-                right: 20px;
-                max-width: none;
-                padding: 15px;
-            }
-            h1 { font-size: 18px; margin-bottom: 2px; }
-            h2 { font-size: 12px; margin-bottom: 10px; }
-            .desc { display: none; } /* 모바일에서는 설명 숨김 */
-            .btn-group button { padding: 10px 0; } /* 터치 영역 확대 */
-            .nav { top: 10px; right: 10px; }
-        }
         h1 { margin: 0 0 5px 0; font-size: 22px; color: #ffeb3b; }
         h2 { margin: 0 0 15px 0; font-size: 14px; color: #aaa; font-weight: normal; }
         .control-group { margin-bottom: 15px; }
@@ -60,6 +45,22 @@
         .nav { position: absolute; top: 20px; right: 20px; z-index: 100; }
         .nav a { color: #aaa; text-decoration: none; font-size: 14px; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 4px; }
         .nav a:hover { color: #fff; background: rgba(0,0,0,0.8); }
+
+        @media (max-width: 600px) {
+            .ui-panel {
+                top: auto;
+                bottom: 20px;
+                left: 20px;
+                right: 20px;
+                max-width: none;
+                padding: 15px;
+            }
+            h1 { font-size: 18px; margin-bottom: 2px; }
+            h2 { font-size: 12px; margin-bottom: 10px; }
+            .desc { display: block; font-size: 11px; }
+            .btn-group button { padding: 12px 0; }
+            .nav { top: 10px; right: 10px; }
+        }
     </style>
 </head>
 <body>
@@ -103,15 +104,13 @@
 
         function setup() {
             createCanvas(windowWidth, windowHeight);
-            cx = width / 2;
-            cy = height / 3;
+            setDimensions(); // 화면 크기에 맞춰 길이 설정
+            
             buffer = createGraphics(width, height);
             buffer.background(17);
             
-            // 첫 진자 생성
             addPendulum(1, true);
             
-            // UI 이벤트 연결
             let slider = document.getElementById('speedSlider');
             if (slider) {
                 slider.addEventListener('input', (e) => {
@@ -120,6 +119,18 @@
                     if (valDisplay) valDisplay.innerText = g.toFixed(1);
                 });
             }
+        }
+
+        function setDimensions() {
+            cx = width / 2;
+            cy = height / 3; // 중심점 위치
+            
+            // 화면 크기에 비례하여 진자 길이 조정 (반응형)
+            // 화면의 짧은 쪽 길이(width or height)의 18% 정도로 설정
+            // 두 팔을 합치면 약 36%가 되어 화면 안에 넉넉히 들어옴
+            let minDim = min(width, height);
+            r1 = minDim * 0.18;
+            r2 = minDim * 0.18;
         }
 
         class Pendulum {
@@ -167,18 +178,20 @@
                 push();
                 translate(cx, cy);
                 
-                stroke(255, 30);
-                strokeWeight(1);
+                // 진자 줄 (굵게)
+                stroke(255, 60);
+                strokeWeight(3);
                 line(0, 0, x1, y1);
                 line(x1, y1, x2, y2);
                 
+                // 진자 추 (크게)
                 noStroke();
                 fill(255, 200);
-                ellipse(x1, y1, 6, 6);
+                ellipse(x1, y1, 14, 14);
                 
                 colorMode(HSB);
                 fill(this.hue, 80, 100);
-                ellipse(x2, y2, 8, 8);
+                ellipse(x2, y2, 18, 18);
                 pop();
 
                 if (this.px2 !== -1) {
@@ -186,9 +199,9 @@
                     buffer.translate(cx, cy);
                     buffer.colorMode(HSB);
                     let vel = abs(this.a1_v) + abs(this.a2_v);
-                    let alpha = map(vel, 0, 0.5, 0.1, 0.6);
+                    let alpha = map(vel, 0, 0.5, 0.3, 0.9);
                     buffer.stroke(this.hue, 80, 100, alpha);
-                    buffer.strokeWeight(1.5);
+                    buffer.strokeWeight(3);
                     buffer.line(this.px2, this.py2, x2, y2);
                     buffer.pop();
                 }
@@ -225,8 +238,7 @@
 
         function windowResized() {
             resizeCanvas(windowWidth, windowHeight);
-            cx = width / 2;
-            cy = height / 3;
+            setDimensions(); // 리사이즈 시 길이 재계산
             buffer = createGraphics(width, height);
             buffer.background(17);
         }
